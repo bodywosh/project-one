@@ -184,7 +184,7 @@ window.onload = () => {
                 this.recover = true
                 this.lives--
                 document.querySelector('#healthBar img:last-child').remove()
-                if(this.lives<1){
+                if(this.lives<=0){
                     this.dead()
                 }
                 setTimeout(()=>{
@@ -422,7 +422,6 @@ window.onload = () => {
         }
 
         animate(atkFreq){
-            this.move() 
             if(this.difficulty==='hard'){
                 this.flameThrower(20, 'auto', 20, 50, 2200)
             }else{
