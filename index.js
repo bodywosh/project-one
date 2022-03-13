@@ -5,16 +5,10 @@ window.onload = () => {
     const ctx = canvas.getContext('2d')
     ctx.imageSmoothingEnabled = false
     ctx.font = '16px Aerial'
-    const spellCast = new CustomEvent('spellcast')
-    const wordCast = new CustomEvent('wordcast')
-    const startGame = new CustomEvent('startgame')
-    const endGame = new CustomEvent('endgame')
-    const loremIpsum = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque porttitor, quam id finibus euismod, purus quam luctus magna, convallis sollicitudin velit erat id arcu.'
-    let incantation = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque porttitor, quam id finibus euismod, purus quam luctus magna, convallis sollicitudin velit erat id arcu.'
-    incantation = incantation.replaceAll(',','')
-    incantation = incantation.replaceAll('.','')
-    incantation = incantation.split(' ')
     let gameStarted = false
+    const loremIpsum = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
+    let nbMobs = 0
+    let mobs = []
 
     class Sprite{
         constructor(){
@@ -66,11 +60,13 @@ window.onload = () => {
             this.speed = 4
             this.text = ''
             this.prompt = 'start'
+            this.activeWord = 'start'
             this.height = 32
             this.width = 32
             this.recover = false
             this.lives = 3
             this.avatar = new Sprite()
+            this.incantation = purgeString(loremIpsum)
 
             document.addEventListener('keydown',(event) => {
                 switch(event.key){
@@ -114,6 +110,19 @@ window.onload = () => {
                         break
                 }
             })
+        }
+        reset(){
+            this.text = ''
+            this.activeWord = 'start'
+            this.prompt = 'start'
+            this.recover = false
+            this.lives = 3
+            this.incantation = purgeString(loremIpsum)
+            while(document.querySelectorAll('#healthBar img').length<3){
+                document.querySelector('#healthBar').insertAdjacentHTML('afterbegin',`
+                <img src="health.png" alt="heart">
+                `)
+            }
         }
         direction(){
             if(this.movingUp) return 'Up'
@@ -182,36 +191,44 @@ window.onload = () => {
             }
         }
         dead(){
-            document.dispatchEvent(endGame)
+            endGame()
         }
         type(char){
             if(char===this.prompt.charAt(0) || char.toUpperCase() === this.prompt.charAt(0)){
                 this.text+=this.prompt.charAt(0)
                 this.prompt=this.prompt.substring(1)
             }
-            if(this.prompt===''){
-                if(!gameStarted){
-                    document.dispatchEvent(startGame)
-                    gameStarted = true
+            if(this.prompt==='' ){
+                if(!gameStarted && this.activeWord==='start' && this.text==='start'){
+                    startGame()
                 }else{
-                this.wordTyped()
+                    this.wordTyped()
                 }
-                this.text=''
-                if(incantation.length===0){
-                    this.cast()
-                }else{
-                    this.prompt = incantation[0]
-                    incantation.shift()
+                if(gameStarted){
+                    this.text=''
+                    if(this.incantation.length===0){
+                        this.cast()
+                        this.incantation = purgeString(loremIpsum)
+                    }else{
+                        console.log('okokok')
+                        this.prompt = this.incantation[0]
+                        this.incantation.shift()
+                    }
                 }
             }
         }
+
         cast(){
             document.dispatchEvent(spellCast)
         }
         wordTyped(){
-            document.dispatchEvent(wordCast)
+            mobs.forEach((item)=>{
+                item.hit()
+            })
         }
     }
+    
+    let mainChar = new Character()
 
     class Projectile{
         constructor(x,y,deg,speed){
@@ -245,6 +262,8 @@ window.onload = () => {
 
     class Foe{
         constructor(){
+            nbMobs++
+            mobs.push(this)
             this.health = 100
             this.numColumns = 8
             this.currentFrame = 0 
@@ -258,19 +277,24 @@ window.onload = () => {
             this.projectiles = []
             this.avatar.onload = () => {}
             this.avatar.src = 'glaringoverlord.png'
-
-            //document.addEventListener('spellcast', () => this.death())
-            document.addEventListener('wordcast', () => this.hit())
         }
 
-        death(){
+        death(){//a retoucher si ya plusieurs mobs
             clearInterval(this.attackID)
             this.speed = 0
-            document.dispatchEvent(endGame)
+            setTimeout(()=>{
+                if(gameStarted){
+                    mobs.pop()
+                    if(mobs.length===0){
+                        console.log('extermination')
+                        endGame()
+                    }
+                }
+            },4000)
         }
 
         hit(){
-            this.health -= 20
+            this.health -= 50
             if(this.health<=0){
                 this.health=0
                 this.death()
@@ -370,7 +394,7 @@ window.onload = () => {
             return (result < 0) ? -result : (360 - result)
         }
 
-        animate(atkFreq){
+        animate(atkFreq){//SCRAP
             this.attackID = setInterval(()=>{
                 if(Math.random() < 0.5){
                     this.circleAttack( Math.floor(Math.random() * 30), Math.floor(Math.random() * 360))
@@ -395,6 +419,13 @@ window.onload = () => {
         ctx.restore()
     }
 
+    function purgeString(string){
+        let newString = string.replaceAll(',','')
+        newString = newString.replaceAll('.','')
+        newString = newString.split(' ')
+        return newString
+    }
+
     function isLetter(c) {
         if(c.length>1)
             return false
@@ -403,49 +434,46 @@ window.onload = () => {
 
     function render(){
         ctx.clearRect(0, 0, canvasWidth, canvasHeight)
-        guy.move()
-        guy.draw()
+        if(mainChar){
+            mainChar.move()
+            mainChar.draw()
+        }
         if(badGuy){
             badGuy.draw()
             badGuy.move()
             badGuy.moveProjectiles()
-            badGuy.collides(guy)
+            badGuy.collides(mainChar)
         }
         requestAnimationFrame(render)
     }
 
-    let badGuy = false
-    let guy = new Character()
+    function endGame(){
+        console.log('endgame')
+        badGuy=false
+        mainChar.reset()
+        gameStarted = false
+            
+        setTimeout(() => {
+            //mainChar = new Character()
+            //badGuy = new Foe()
+        }, 4000);
+    }
 
-    document.addEventListener('startgame', () =>{
+    function startGame(){
+        gameStarted = true
         badGuy = new Foe()
         setTimeout(() => {
             badGuy.animate(300)
+            badGuy.shotgunAttack(20,badGuy.pointToAngle(mainChar.x,mainChar.y),20)
         }, 200);
-    })
-  
-    document.addEventListener('endgame', () =>{
-        while(document.querySelectorAll('#healthBar img').length<3){
-            document.querySelector('#healthBar').insertAdjacentHTML('afterbegin',`
-            <img src="health.png" alt="heart">
-            `)
-        }
-        guy.text=''
-        guy.prompt='start'
-        guy.lives=3
-        incantation=loremIpsum
-        setTimeout(() => {
-            badGuy = false
-            gameStarted = false
-        }, 4000);
-    })
+    }
+
+    let badGuy = false
 
     requestAnimationFrame(render)
 
-    // setInterval(()=>{
-    //     badGuy.shotgunAttack(20,badGuy.pointToAngle(toad.x,toad.y),20)
-    // })
-    // render()
+ 
+    
 
    
 
