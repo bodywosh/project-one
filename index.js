@@ -51,8 +51,6 @@ window.onload = () => {
 
     class Character{
         constructor(){
-            this.y = 284
-            this.x = 384
             this.movingUp = false
             this.movingDown = false
             this.movingRight = false
@@ -65,6 +63,8 @@ window.onload = () => {
             this.width = 32
             this.recover = false
             this.lives = 3
+            this.y = canvasHeight/2 - this.height/2
+            this.x = canvasWidth/2 - this.width/2
             this.avatar = new Sprite()
             this.incantation = purgeString(loremIpsum)
 
