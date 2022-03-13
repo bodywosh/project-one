@@ -353,6 +353,17 @@ window.onload = () => {
             }
         }
 
+        arcAttack(nbProj, startAngle, spreadAngle){
+            if(startAngle==='inverse'){
+                 startAngle = this.pointToAngle(mainChar.x,mainChar.y)+spreadAngle/2
+                 spreadAngle = 360 - spreadAngle
+            }
+            if(startAngle==='auto') startAngle = this.pointToAngle(mainChar.x,mainChar.y)-spreadAngle/2
+            for(let i = 1; i <= nbProj; i++){
+                this.attack(Math.floor(startAngle+spreadAngle*i/nbProj), 5)
+             }
+        }
+
         shotgunAttack(nbProj, startAngle, spread){
             if(startAngle==='auto') startAngle = this.pointToAngle(mainChar.x,mainChar.y)
             for(let i = 0; i<nbProj; i++){
@@ -399,18 +410,16 @@ window.onload = () => {
             if(this.x < 0){
                 this.x = 0
                 this.direction = Math.floor(Math.random() * 360)
+            }else if(this.x + this.width > canvasWidth){  
+                this.x = canvasWidth - this.width
+                this.direction = Math.floor(Math.random() * 360)
             }
             if(this.y < 0){
                 this.y = 0
                 this.direction = Math.floor(Math.random() * 360)
-            }
-            if(this.x + this.width > canvasWidth){
-                 this.x = canvasWidth - this.width
-                 this.direction = Math.floor(Math.random() * 360)
-            }
-            if(this.y + this.height > canvasHeight){
-                 this.y = canvasHeight - this.height
-                 this.direction = Math.floor(Math.random() * 360)
+            }else if(this.y + this.height > canvasHeight){
+                this.y = canvasHeight - this.height
+                this.direction = Math.floor(Math.random() * 360)
             }
         }
 
