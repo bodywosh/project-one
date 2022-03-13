@@ -294,7 +294,7 @@ window.onload = () => {
         }
 
         hit(){
-            this.health -= 50
+            this.health -= 15
             if(this.health<=0){
                 this.health=0
                 this.death()
