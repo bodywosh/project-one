@@ -6,8 +6,8 @@ window.onload = () => {
     ctx.imageSmoothingEnabled = false
     ctx.font = '16px Aerial'
     let gameStarted = false
+    let gameDifficulty = 'easy'
     const loremIpsum = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
-    let nbMobs = 0
     let mobs = []
 
     class Sprite{
@@ -62,6 +62,7 @@ window.onload = () => {
             this.height = 32
             this.width = 32
             this.recover = false
+            this.maxHealth = 5
             this.lives = 3
             this.y = canvasHeight/2 - this.height/2
             this.x = canvasWidth/2 - this.width/2
@@ -118,10 +119,11 @@ window.onload = () => {
             this.recover = false
             this.lives = 3
             this.incantation = purgeString(loremIpsum)
-            while(document.querySelectorAll('#healthBar img').length<3){
-                document.querySelector('#healthBar').insertAdjacentHTML('afterbegin',`
-                <img src="health.png" alt="heart">
-                `)
+            document.querySelector('#healthBar').innerHTML = ''
+            for(let i = 0 ; i < this.lives ; i++){
+                let img = document.createElement("img")
+                img.src = "health.png"
+                document.querySelector('#healthBar').appendChild(img)
             }
         }
         direction(){
@@ -194,7 +196,7 @@ window.onload = () => {
             endGame()
         }
         type(char){
-            if(char===this.prompt.charAt(0) || char.toUpperCase() === this.prompt.charAt(0)){
+            if(char===this.prompt.charAt(0) || char.toUpperCase() === this.prompt.charAt(0) || char.toLowerCase() === this.prompt.charAt(0)){
                 this.text+=this.prompt.charAt(0)
                 this.prompt=this.prompt.substring(1)
             }
@@ -210,7 +212,6 @@ window.onload = () => {
                         this.cast()
                         this.incantation = purgeString(loremIpsum)
                     }else{
-                        console.log('okokok')
                         this.prompt = this.incantation[0]
                         this.incantation.shift()
                     }
@@ -262,8 +263,8 @@ window.onload = () => {
 
     class Foe{
         constructor(){
-            nbMobs++
             mobs.push(this)
+            this.difficulty = gameDifficulty
             this.health = 100
             this.numColumns = 8
             this.currentFrame = 0 
@@ -277,10 +278,12 @@ window.onload = () => {
             this.projectiles = []
             this.avatar.onload = () => {}
             this.avatar.src = 'glaringoverlord.png'
+            this.frenzy = true
         }
 
         death(){//a retoucher si ya plusieurs mobs
             clearInterval(this.attackID)
+            clearInterval(this.frenzyID)
             this.speed = 0
             setTimeout(()=>{
                 if(gameStarted){
@@ -327,7 +330,8 @@ window.onload = () => {
         collides(char){
             this.projectiles.forEach((item,index)=>{
                 if(item.collides(char)){
-                    char.hit()
+                    if(gameStarted)
+                        char.hit()
                     this.projectiles.splice(index,1)
                 }
             })
@@ -350,9 +354,32 @@ window.onload = () => {
         }
 
         shotgunAttack(nbProj, startAngle, spread){
+            if(startAngle==='auto') startAngle = this.pointToAngle(mainChar.x,mainChar.y)
             for(let i = 0; i<nbProj; i++){
                 this.attack( startAngle + Math.floor(Math.random()*spread - spread/2) , Math.random()*4+1)
             }
+        }
+
+        flameThrower(nbProj, startAngle, spread, atkFreq, frenzyFreq){
+            this.attackID = setInterval(()=>{
+                if(this.frenzy){
+                    this.shotgunAttack(nbProj, startAngle, spread)
+                }
+            },atkFreq)
+
+            this.frenzyID = setInterval(()=>{
+                this.frenzy = !this.frenzy
+            },frenzyFreq)
+        }
+
+        randomAttack(nbProj, startAngle, spread, atkFreq){
+            this.attackID = setInterval(()=>{
+                if(Math.random() < 0.5){
+                    this.circleAttack( Math.floor(Math.random() * 30), Math.floor(Math.random() * 360))
+                }else{
+                    this.shotgunAttack(10,Math.floor(Math.random()*360),20)
+                }
+            },atkFreq)
         }
 
         moveProjectiles(){
@@ -394,14 +421,13 @@ window.onload = () => {
             return (result < 0) ? -result : (360 - result)
         }
 
-        animate(atkFreq){//SCRAP
-            this.attackID = setInterval(()=>{
-                if(Math.random() < 0.5){
-                    this.circleAttack( Math.floor(Math.random() * 30), Math.floor(Math.random() * 360))
-                }else{
-                    this.shotgunAttack(10,Math.floor(Math.random()*360),20)
-                }
-            },atkFreq)
+        animate(atkFreq){
+            this.move() 
+            if(this.difficulty==='hard'){
+                this.flameThrower(20, 'auto', 20, 50, 2200)
+            }else{
+                this.randomAttack(20, Math.floor(Math.random()*360), 20, atkFreq, 2000)
+            }
         }
     }
 
@@ -434,6 +460,20 @@ window.onload = () => {
 
     function render(){
         ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+        if(!gameStarted){
+            ctx.save()
+            ctx.beginPath()
+            ctx.setLineDash([20, 20])
+            ctx.lineDashOffset = Math.floor(Date.now() / 20) % 40
+            ctx.moveTo(canvasWidth/2, 0)
+            ctx.lineTo(canvasWidth/2, canvasHeight)
+            ctx.stroke()
+            ctx.fillStyle = 'black'
+            ctx.font = '48px serif'
+            ctx.fillText('EZ', 10,  48)
+            ctx.fillText('VNR', canvasWidth-110, canvasHeight-10)
+            ctx.restore()
+        }
         if(mainChar){
             mainChar.move()
             mainChar.draw()
@@ -447,32 +487,29 @@ window.onload = () => {
         requestAnimationFrame(render)
     }
 
+
+
     function endGame(){
-        console.log('endgame')
         badGuy=false
         mainChar.reset()
         gameStarted = false
-            
-        setTimeout(() => {
-            //mainChar = new Character()
-            //badGuy = new Foe()
-        }, 4000);
     }
 
     function startGame(){
+        mainChar.x>canvasWidth/2 ? gameDifficulty = 'hard' : gameDifficulty = 'easy'
         gameStarted = true
         badGuy = new Foe()
+        mainChar.reset()
         setTimeout(() => {
-            badGuy.animate(300)
-            badGuy.shotgunAttack(20,badGuy.pointToAngle(mainChar.x,mainChar.y),20)
-        }, 200);
+            badGuy.animate(1000)
+        }, 100)
     }
 
     let badGuy = false
 
     requestAnimationFrame(render)
 
- 
+    
     
 
    
