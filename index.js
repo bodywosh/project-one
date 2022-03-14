@@ -9,7 +9,10 @@ window.onload = () => {
     const wordCast = new CustomEvent('wordcast')
     const startGame = new CustomEvent('startgame')
     const endGame = new CustomEvent('endgame')
-    const loremIpsum = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque porttitor, quam id finibus euismod, purus quam luctus magna, convallis sollicitudin velit erat id arcu.'
+const loremIpsum = `HE passed and as immovable	
+As, with the last sigh given,	
+Lay his own clay, oblivious,	
+From that great spirit riven,`
     let incantation = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque porttitor, quam id finibus euismod, purus quam luctus magna, convallis sollicitudin velit erat id arcu.'
     incantation = incantation.replaceAll(',','')
     incantation = incantation.replaceAll('.','')
@@ -436,16 +439,17 @@ window.onload = () => {
         incantation=loremIpsum
         setTimeout(() => {
             badGuy = false
-            gameStarted = false
+            //gameStarted = false
+            setInterval(()=>{
+                badGuy.shotgunAttack(20,badGuy.pointToAngle(toad.x,toad.y),20)
+            })
         }, 4000);
-    })
+    }) 
 
     requestAnimationFrame(render)
 
-    // setInterval(()=>{
-    //     badGuy.shotgunAttack(20,badGuy.pointToAngle(toad.x,toad.y),20)
-    // })
-    // render()
+    
+    render()
 
    
 
