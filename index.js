@@ -5,19 +5,10 @@ window.onload = () => {
     const ctx = canvas.getContext('2d')
     ctx.imageSmoothingEnabled = false
     ctx.font = '16px Aerial'
-    const spellCast = new CustomEvent('spellcast')
-    const wordCast = new CustomEvent('wordcast')
-    const startGame = new CustomEvent('startgame')
-    const endGame = new CustomEvent('endgame')
-const loremIpsum = `HE passed and as immovable	
-As, with the last sigh given,	
-Lay his own clay, oblivious,	
-From that great spirit riven,`
-    let incantation = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque porttitor, quam id finibus euismod, purus quam luctus magna, convallis sollicitudin velit erat id arcu.'
-    incantation = incantation.replaceAll(',','')
-    incantation = incantation.replaceAll('.','')
-    incantation = incantation.split(' ')
     let gameStarted = false
+    let gameDifficulty = 'easy'
+    const loremIpsum = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
+    let mobs = []
 
     class Sprite{
         constructor(){
@@ -60,8 +51,6 @@ From that great spirit riven,`
 
     class Character{
         constructor(){
-            this.y = 284
-            this.x = 384
             this.movingUp = false
             this.movingDown = false
             this.movingRight = false
@@ -69,11 +58,16 @@ From that great spirit riven,`
             this.speed = 4
             this.text = ''
             this.prompt = 'start'
+            this.activeWord = 'start'
             this.height = 32
             this.width = 32
             this.recover = false
+            this.maxHealth = 5
             this.lives = 3
+            this.y = canvasHeight/2 - this.height/2
+            this.x = canvasWidth/2 - this.width/2
             this.avatar = new Sprite()
+            this.incantation = purgeString(loremIpsum)
 
             document.addEventListener('keydown',(event) => {
                 switch(event.key){
@@ -117,6 +111,20 @@ From that great spirit riven,`
                         break
                 }
             })
+        }
+        reset(){
+            this.text = ''
+            this.activeWord = 'start'
+            this.prompt = 'start'
+            this.recover = false
+            this.lives = 3
+            this.incantation = purgeString(loremIpsum)
+            document.querySelector('#healthBar').innerHTML = ''
+            for(let i = 0 ; i < this.lives ; i++){
+                let img = document.createElement("img")
+                img.src = "health.png"
+                document.querySelector('#healthBar').appendChild(img)
+            }
         }
         direction(){
             if(this.movingUp) return 'Up'
@@ -176,7 +184,7 @@ From that great spirit riven,`
                 this.recover = true
                 this.lives--
                 document.querySelector('#healthBar img:last-child').remove()
-                if(this.lives<1){
+                if(this.lives<=0){
                     this.dead()
                 }
                 setTimeout(()=>{
@@ -185,36 +193,43 @@ From that great spirit riven,`
             }
         }
         dead(){
-            document.dispatchEvent(endGame)
+            endGame()
         }
         type(char){
-            if(char===this.prompt.charAt(0) || char.toUpperCase() === this.prompt.charAt(0)){
+            if(char===this.prompt.charAt(0) || char.toUpperCase() === this.prompt.charAt(0) || char.toLowerCase() === this.prompt.charAt(0)){
                 this.text+=this.prompt.charAt(0)
                 this.prompt=this.prompt.substring(1)
             }
-            if(this.prompt===''){
-                if(!gameStarted){
-                    document.dispatchEvent(startGame)
-                    gameStarted = true
+            if(this.prompt==='' ){
+                if(!gameStarted && this.activeWord==='start' && this.text==='start'){
+                    startGame()
                 }else{
-                this.wordTyped()
+                    this.wordTyped()
                 }
-                this.text=''
-                if(incantation.length===0){
-                    this.cast()
-                }else{
-                    this.prompt = incantation[0]
-                    incantation.shift()
+                if(gameStarted){
+                    this.text=''
+                    if(this.incantation.length===0){
+                        this.cast()
+                        this.incantation = purgeString(loremIpsum)
+                    }else{
+                        this.prompt = this.incantation[0]
+                        this.incantation.shift()
+                    }
                 }
             }
         }
+
         cast(){
             document.dispatchEvent(spellCast)
         }
         wordTyped(){
-            document.dispatchEvent(wordCast)
+            mobs.forEach((item)=>{
+                item.hit()
+            })
         }
     }
+    
+    let mainChar = new Character()
 
     class Projectile{
         constructor(x,y,deg,speed){
@@ -248,6 +263,8 @@ From that great spirit riven,`
 
     class Foe{
         constructor(){
+            mobs.push(this)
+            this.difficulty = gameDifficulty
             this.health = 100
             this.numColumns = 8
             this.currentFrame = 0 
@@ -261,19 +278,26 @@ From that great spirit riven,`
             this.projectiles = []
             this.avatar.onload = () => {}
             this.avatar.src = 'glaringoverlord.png'
-
-            //document.addEventListener('spellcast', () => this.death())
-            document.addEventListener('wordcast', () => this.hit())
+            this.frenzy = true
         }
 
-        death(){
+        death(){//a retoucher si ya plusieurs mobs
             clearInterval(this.attackID)
+            clearInterval(this.frenzyID)
             this.speed = 0
-            document.dispatchEvent(endGame)
+            setTimeout(()=>{
+                if(gameStarted){
+                    mobs.pop()
+                    if(mobs.length===0){
+                        console.log('extermination')
+                        endGame()
+                    }
+                }
+            },4000)
         }
 
         hit(){
-            this.health -= 20
+            this.health -= 15
             if(this.health<=0){
                 this.health=0
                 this.death()
@@ -306,7 +330,8 @@ From that great spirit riven,`
         collides(char){
             this.projectiles.forEach((item,index)=>{
                 if(item.collides(char)){
-                    char.hit()
+                    if(gameStarted)
+                        char.hit()
                     this.projectiles.splice(index,1)
                 }
             })
@@ -328,10 +353,44 @@ From that great spirit riven,`
             }
         }
 
+        arcAttack(nbProj, startAngle, spreadAngle){
+            if(startAngle==='inverse'){
+                 startAngle = this.pointToAngle(mainChar.x,mainChar.y)+spreadAngle/2
+                 spreadAngle = 360 - spreadAngle
+            }
+            if(startAngle==='auto') startAngle = this.pointToAngle(mainChar.x,mainChar.y)-spreadAngle/2
+            for(let i = 1; i <= nbProj; i++){
+                this.attack(Math.floor(startAngle+spreadAngle*i/nbProj), 5)
+             }
+        }
+
         shotgunAttack(nbProj, startAngle, spread){
+            if(startAngle==='auto') startAngle = this.pointToAngle(mainChar.x,mainChar.y)
             for(let i = 0; i<nbProj; i++){
                 this.attack( startAngle + Math.floor(Math.random()*spread - spread/2) , Math.random()*4+1)
             }
+        }
+
+        flameThrower(nbProj, startAngle, spread, atkFreq, frenzyFreq){
+            this.attackID = setInterval(()=>{
+                if(this.frenzy){
+                    this.shotgunAttack(nbProj, startAngle, spread)
+                }
+            },atkFreq)
+
+            this.frenzyID = setInterval(()=>{
+                this.frenzy = !this.frenzy
+            },frenzyFreq)
+        }
+
+        randomAttack(nbProj, startAngle, spread, atkFreq){
+            this.attackID = setInterval(()=>{
+                if(Math.random() < 0.5){
+                    this.circleAttack( Math.floor(Math.random() * 30), Math.floor(Math.random() * 360))
+                }else{
+                    this.shotgunAttack(10,Math.floor(Math.random()*360),20)
+                }
+            },atkFreq)
         }
 
         moveProjectiles(){
@@ -351,18 +410,16 @@ From that great spirit riven,`
             if(this.x < 0){
                 this.x = 0
                 this.direction = Math.floor(Math.random() * 360)
+            }else if(this.x + this.width > canvasWidth){  
+                this.x = canvasWidth - this.width
+                this.direction = Math.floor(Math.random() * 360)
             }
             if(this.y < 0){
                 this.y = 0
                 this.direction = Math.floor(Math.random() * 360)
-            }
-            if(this.x + this.width > canvasWidth){
-                 this.x = canvasWidth - this.width
-                 this.direction = Math.floor(Math.random() * 360)
-            }
-            if(this.y + this.height > canvasHeight){
-                 this.y = canvasHeight - this.height
-                 this.direction = Math.floor(Math.random() * 360)
+            }else if(this.y + this.height > canvasHeight){
+                this.y = canvasHeight - this.height
+                this.direction = Math.floor(Math.random() * 360)
             }
         }
 
@@ -374,13 +431,11 @@ From that great spirit riven,`
         }
 
         animate(atkFreq){
-            this.attackID = setInterval(()=>{
-                if(Math.random() < 0.5){
-                    this.circleAttack( Math.floor(Math.random() * 30), Math.floor(Math.random() * 360))
-                }else{
-                    this.shotgunAttack(10,Math.floor(Math.random()*360),20)
-                }
-            },atkFreq)
+            if(this.difficulty==='hard'){
+                this.flameThrower(20, 'auto', 20, 50, 2200)
+            }else{
+                this.randomAttack(20, Math.floor(Math.random()*360), 20, atkFreq, 2000)
+            }
         }
     }
 
@@ -398,6 +453,13 @@ From that great spirit riven,`
         ctx.restore()
     }
 
+    function purgeString(string){
+        let newString = string.replaceAll(',','')
+        newString = newString.replaceAll('.','')
+        newString = newString.split(' ')
+        return newString
+    }
+
     function isLetter(c) {
         if(c.length>1)
             return false
@@ -406,50 +468,57 @@ From that great spirit riven,`
 
     function render(){
         ctx.clearRect(0, 0, canvasWidth, canvasHeight)
-        guy.move()
-        guy.draw()
+        if(!gameStarted){
+            ctx.save()
+            ctx.beginPath()
+            ctx.setLineDash([20, 20])
+            ctx.lineDashOffset = Math.floor(Date.now() / 20) % 40
+            ctx.moveTo(canvasWidth/2, 0)
+            ctx.lineTo(canvasWidth/2, canvasHeight)
+            ctx.stroke()
+            ctx.fillStyle = 'black'
+            ctx.font = '48px serif'
+            ctx.fillText('EZ', 10,  48)
+            ctx.fillText('VNR', canvasWidth-110, canvasHeight-10)
+            ctx.restore()
+        }
+        if(mainChar){
+            mainChar.move()
+            mainChar.draw()
+        }
         if(badGuy){
             badGuy.draw()
             badGuy.move()
             badGuy.moveProjectiles()
-            badGuy.collides(guy)
+            badGuy.collides(mainChar)
         }
         requestAnimationFrame(render)
     }
 
-    let badGuy = false
-    let guy = new Character()
 
-    document.addEventListener('startgame', () =>{
+
+    function endGame(){
+        badGuy=false
+        mainChar.reset()
+        gameStarted = false
+    }
+
+    function startGame(){
+        mainChar.x>canvasWidth/2 ? gameDifficulty = 'hard' : gameDifficulty = 'easy'
+        gameStarted = true
         badGuy = new Foe()
+        mainChar.reset()
         setTimeout(() => {
-            badGuy.animate(300)
-        }, 200);
-    })
-  
-    document.addEventListener('endgame', () =>{
-        while(document.querySelectorAll('#healthBar img').length<3){
-            document.querySelector('#healthBar').insertAdjacentHTML('afterbegin',`
-            <img src="health.png" alt="heart">
-            `)
-        }
-        guy.text=''
-        guy.prompt='start'
-        guy.lives=3
-        incantation=loremIpsum
-        setTimeout(() => {
-            badGuy = false
-            //gameStarted = false
-            setInterval(()=>{
-                badGuy.shotgunAttack(20,badGuy.pointToAngle(toad.x,toad.y),20)
-            })
-        }, 4000);
-    }) 
+            badGuy.animate(1000)
+        }, 100)
+    }
+
+    let badGuy = false
 
     requestAnimationFrame(render)
 
     
-    render()
+    
 
    
 
