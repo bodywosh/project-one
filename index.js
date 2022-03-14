@@ -495,8 +495,6 @@ window.onload = () => {
         requestAnimationFrame(render)
     }
 
-
-
     function endGame(){
         badGuy=false
         mainChar.reset()
@@ -516,11 +514,5 @@ window.onload = () => {
     let badGuy = false
 
     requestAnimationFrame(render)
-
-    
-    
-
-   
-
 
   }
