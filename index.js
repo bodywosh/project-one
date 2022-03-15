@@ -273,7 +273,9 @@ window.onload = () => {
             clearInterval(this.frenzyID)
             this.speed = 0
             setTimeout(()=>{
-                endGame()
+                if(gameStarted){
+                    endGame()
+                }
             },4000)
         }
 
