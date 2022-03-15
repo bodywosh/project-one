@@ -8,3 +8,13 @@
     width:40px;
     height:40px;
 }
+body>div{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width:900px;
+}
+#score{
+    font-family: 'Press Start 2P', cursive;
+    font-size: 20px;
+}

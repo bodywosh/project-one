@@ -4,11 +4,10 @@ window.onload = () => {
     const canvasWidth = canvas.width
     const ctx = canvas.getContext('2d')
     ctx.imageSmoothingEnabled = false
-    ctx.font = '16px Aerial'
+    ctx.font = '18px VT323'
     let gameStarted = false
     let gameDifficulty = 'easy'
-    const loremIpsum = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
-    let mobs = []
+    let badGuy = false
 
     class Sprite{
         constructor(){
@@ -18,16 +17,16 @@ window.onload = () => {
             this.currentFrame = 0 
             this.avatarDown = new Image()
             this.avatarDown.onload = () => {}
-            this.avatarDown.src = 'Character_Down.png'
+            this.avatarDown.src = 'images/Character_Down.png'
             this.avatarUp = new Image()
             this.avatarUp.onload = () => {}
-            this.avatarUp.src = 'Character_Up.png'
+            this.avatarUp.src = 'images/Character_Up.png'
             this.avatarLeft = new Image()
             this.avatarLeft.onload = () => {}
-            this.avatarLeft.src = 'Character_Left.png'
+            this.avatarLeft.src = 'images/Character_Left.png'
             this.avatarRight = new Image()
             this.avatarRight.onload = () => {}
-            this.avatarRight.src = 'Character_Right.png'
+            this.avatarRight.src = 'images/Character_Right.png'
             this.lastDirection = 'Down'
         }
 
@@ -36,14 +35,13 @@ window.onload = () => {
                 ctx.drawImage(this[`avatar${this.lastDirection}`], 0, 0, this.frameWidth, this.frameHeight, x, y, this.frameWidth, this.frameHeight) 
                 return 
             }
-
             this.lastDirection = direction
             this.currentFrame++
             let maxFrame = this.numColumns - 1
             if (this.currentFrame > maxFrame){
                 this.currentFrame = 0
             }
-            let column = this.currentFrame % this.numColumns;
+            let column = this.currentFrame % this.numColumns
 
             ctx.drawImage(this[`avatar${direction}`], column * this.frameWidth, 0, this.frameWidth, this.frameHeight, x, y, this.frameWidth, this.frameHeight)
         }
@@ -62,12 +60,11 @@ window.onload = () => {
             this.height = 32
             this.width = 32
             this.recover = false
-            this.maxHealth = 5
             this.lives = 3
             this.y = canvasHeight/2 - this.height/2
             this.x = canvasWidth/2 - this.width/2
             this.avatar = new Sprite()
-            this.incantation = purgeString(loremIpsum)
+            this.incantation = purgeString(getQuote())
 
             document.addEventListener('keydown',(event) => {
                 switch(event.key){
@@ -118,11 +115,11 @@ window.onload = () => {
             this.prompt = 'start'
             this.recover = false
             this.lives = 3
-            this.incantation = purgeString(loremIpsum)
+            this.incantation = purgeString(getQuote())
             document.querySelector('#healthBar').innerHTML = ''
             for(let i = 0 ; i < this.lives ; i++){
                 let img = document.createElement("img")
-                img.src = "health.png"
+                img.src = "images/health.png"
                 document.querySelector('#healthBar').appendChild(img)
             }
         }
@@ -147,15 +144,7 @@ window.onload = () => {
             fillMixedText(ctx, args, this.x, this.y)
         }
         isMovingDiagonal(){
-            let directionCount = 0
-            if(this.movingUp) directionCount++
-            if(this.movingDown) directionCount++
-            if(this.movingLeft) directionCount++
-            if(this.movingRight) directionCount++
-            if(directionCount>1){
-                return true
-            }
-            return false
+            return this.movingUp + this.movingDown + this.movingRight + this.movingLeft - 1
         }
         move(){
             let currentSpeed = this.speed
@@ -197,6 +186,9 @@ window.onload = () => {
         }
         type(char){
             if(char===this.prompt.charAt(0) || char.toUpperCase() === this.prompt.charAt(0) || char.toLowerCase() === this.prompt.charAt(0)){
+                if(gameStarted){
+                     document.querySelector('#score').innerText++
+                }
                 this.text+=this.prompt.charAt(0)
                 this.prompt=this.prompt.substring(1)
             }
@@ -209,8 +201,9 @@ window.onload = () => {
                 if(gameStarted){
                     this.text=''
                     if(this.incantation.length===0){
-                        this.cast()
-                        this.incantation = purgeString(loremIpsum)
+                        this.incantation = purgeString(getQuote())
+                        this.prompt = this.incantation[0]
+                        this.incantation.shift()                      
                     }else{
                         this.prompt = this.incantation[0]
                         this.incantation.shift()
@@ -219,13 +212,8 @@ window.onload = () => {
             }
         }
 
-        cast(){
-            document.dispatchEvent(spellCast)
-        }
         wordTyped(){
-            mobs.forEach((item)=>{
-                item.hit()
-            })
+            badGuy.hit()
         }
     }
     
@@ -261,9 +249,8 @@ window.onload = () => {
         }
     }
 
-    class Foe{
+    class Foe{  
         constructor(){
-            mobs.push(this)
             this.difficulty = gameDifficulty
             this.health = 100
             this.numColumns = 8
@@ -277,30 +264,26 @@ window.onload = () => {
             this.width = 32
             this.projectiles = []
             this.avatar.onload = () => {}
-            this.avatar.src = 'glaringoverlord.png'
+            this.avatar.src = 'images/glaringoverlord.png'
             this.frenzy = true
         }
 
-        death(){//a retoucher si ya plusieurs mobs
+        death(){
             clearInterval(this.attackID)
             clearInterval(this.frenzyID)
             this.speed = 0
             setTimeout(()=>{
-                if(gameStarted){
-                    mobs.pop()
-                    if(mobs.length===0){
-                        console.log('extermination')
-                        endGame()
-                    }
-                }
+                endGame()
             },4000)
         }
 
         hit(){
-            this.health -= 15
-            if(this.health<=0){
-                this.health=0
-                this.death()
+            if(gameStarted&&gameDifficulty==='easy'){
+                this.health -= 15
+                if(this.health<=0){
+                    this.health=0
+                    this.death()
+                }
             }
         }
 
@@ -310,7 +293,7 @@ window.onload = () => {
             if (this.currentFrame > maxFrame){
                 this.currentFrame = 0
             }
-            let column = this.currentFrame % this.numColumns;
+            let column = this.currentFrame % this.numColumns
 
 
             let frequency = 100
@@ -318,9 +301,10 @@ window.onload = () => {
                 ctx.drawImage(this.avatar, column * this.width, 0, this.width, this.height, this.x, this.y, this.width, this.height)
             }
 
-
-            ctx.fillStyle = "red";
-            ctx.fillRect(this.x, this.y-5, (this.width/100)*this.health, 3);
+            if(gameDifficulty==='easy'){
+                ctx.fillStyle = "red"
+                ctx.fillRect(this.x, this.y-5, (this.width/100)*this.health, 3)
+            }
         
             this.projectiles.forEach((item)=>{
                 item.draw()
@@ -496,12 +480,14 @@ window.onload = () => {
     }
 
     function endGame(){
+        document.querySelector('#score').innerText = 0
         badGuy=false
         mainChar.reset()
         gameStarted = false
     }
 
     function startGame(){
+        document.querySelector('#score').innerText = 0
         mainChar.x>canvasWidth/2 ? gameDifficulty = 'hard' : gameDifficulty = 'easy'
         gameStarted = true
         badGuy = new Foe()
@@ -511,7 +497,6 @@ window.onload = () => {
         }, 100)
     }
 
-    let badGuy = false
 
     requestAnimationFrame(render)
 
