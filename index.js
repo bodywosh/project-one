@@ -482,7 +482,6 @@ window.onload = () => {
     }
 
     function endGame(){
-        document.querySelector('#score').innerText = 0
         badGuy=false
         mainChar.reset()
         gameStarted = false
